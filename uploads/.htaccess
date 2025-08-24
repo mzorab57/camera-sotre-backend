@@ -1,0 +1,5 @@
+Options -Indexes
+
+<FilesMatch "\.(ph(p[0-9]?|ar)|phtml)$">
+  Require all denied
+</FilesMatch>
