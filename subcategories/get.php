@@ -43,7 +43,10 @@ $w = $where ? 'WHERE '.implode(' AND ', $where) : '';
 $c = $pdo->prepare("SELECT COUNT(*) FROM subcategories $w"); $c->execute($p);
 $total = (int)$c->fetchColumn();
 
+
 $sql = "SELECT * FROM subcategories $w ORDER BY created_at DESC LIMIT :l OFFSET :o";
+
+
 $s = $pdo->prepare($sql);
 foreach ($p as $k=>$v) $s->bindValue($k, $v);
 $s->bindValue(':l', $limit, PDO::PARAM_INT);
