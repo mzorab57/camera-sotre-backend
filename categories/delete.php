@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../config/cors.php';
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../middleware/protect_admin_employee.php';
+
 
 function input() {
   $ct = $_SERVER['CONTENT_TYPE'] ?? '';
@@ -27,6 +29,9 @@ try {
     $u=$pdo->prepare("UPDATE categories SET is_active=1 WHERE id=:id"); $u->execute([':id'=>$id]);
     $msg='Category restored (is_active=1)';
   } elseif ($hard) {
+    // تەنها admin دەتوانێت hard delete بکات
+    require_once __DIR__ . '/../middleware/protect_admin.php';
+
     // ئاگاداری: ON DELETE CASCADE بۆ subcategories
     $d=$pdo->prepare("DELETE FROM categories WHERE id=:id"); $d->execute([':id'=>$id]);
     $msg='Category hard-deleted';

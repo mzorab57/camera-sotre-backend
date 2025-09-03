@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/cors.php';
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../middleware/protect_admin.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);

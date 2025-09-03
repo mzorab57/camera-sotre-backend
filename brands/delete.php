@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../config/cors.php';
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../middleware/protect_admin_employee.php';
+
 header('Content-Type: application/json; charset=utf-8');
 
 function input(): array {
@@ -37,6 +39,9 @@ try {
     $pdo->prepare("UPDATE brands SET is_active=1 WHERE id=:id")->execute([':id'=>$id]);
     $msg='Brand restored (is_active=1)';
   } elseif ($hard) {
+    // تەنها admin دەتوانێت hard delete بکات
+    require_once __DIR__ . '/../middleware/protect_admin.php';
+
     $pdo->prepare("DELETE FROM brands WHERE id=:id")->execute([':id'=>$id]);
     // delete local logo if any
     deleteLocalIfAny($brand['logo_url']);

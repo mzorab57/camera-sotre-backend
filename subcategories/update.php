@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../config/cors.php';
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../middleware/protect_admin_employee.php';
 
 // Helpers (same as create)
 function isMultipart(): bool { $ct=$_SERVER['CONTENT_TYPE']??($_SERVER['HTTP_CONTENT_TYPE']??''); return stripos($ct,'multipart/form-data')!==false || !empty($_FILES); }

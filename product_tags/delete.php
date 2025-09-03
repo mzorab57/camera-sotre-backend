@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../config/cors.php';
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../middleware/protect_admin_employee.php';
+
 header('Content-Type: application/json; charset=utf-8');
 
 function input(): array { $ct=$_SERVER['CONTENT_TYPE']??''; if (stripos($ct,'application/json')!==false){$raw=file_get_contents('php://input');$d=json_decode($raw,true); if(json_last_error()===JSON_ERROR_NONE)return $d?:[];} return $_POST?:[]; }

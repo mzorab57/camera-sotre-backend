@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/cors.php';
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../middleware/protect_admin_employee.php';
 
 function input(): array {
   $ct = $_SERVER['CONTENT_TYPE'] ?? '';
@@ -32,6 +33,8 @@ try {
     $msg = 'Subcategory restored (is_active=1)';
   } elseif ($hard) {
     try {
+      // تەنها admin دەتوانێت hard delete بکات
+      require_once __DIR__ . '/../middleware/protect_admin.php';
       $pdo->prepare("DELETE FROM subcategories WHERE id = :id")->execute([':id'=>$id]);
       $msg = 'Subcategory hard-deleted';
     } catch (PDOException $e) {

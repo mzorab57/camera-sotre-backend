@@ -1,15 +1,17 @@
 <?php
-// CORS Security Headers
-$allowedOrigin = $_ENV['ALLOWED_ORIGIN'] ?? '*';
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowed = $_ENV['ALLOWED_ORIGINS'] ?? '*';
+$allowAll = trim($allowed) === '*';
+$allowedList = array_map('trim', explode(',', $allowed));
 
-// Only allow specific domain
-header("Access-Control-Allow-Origin: {$allowedOrigin}");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
-header("Content-Type: application/json; charset=utf-8");
-
-// Handle preflight (OPTIONS)
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
+if ($allowAll) {
+  header('Access-Control-Allow-Origin: *');
+} elseif ($origin && in_array($origin, $allowedList, true)) {
+  header("Access-Control-Allow-Origin: $origin");
+  header('Vary: Origin');
 }
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Access-Control-Max-Age: 86400');
+header('Content-Type: application/json; charset=utf-8');
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
