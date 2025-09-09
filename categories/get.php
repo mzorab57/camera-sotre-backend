@@ -1,12 +1,17 @@
 <?php
+// categories/get.php
 require_once __DIR__ . '/../config/cors.php';
 require_once __DIR__ . '/../config/db.php';
 
+// Only allow GET requests
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-  http_response_code(405);
-  echo json_encode(['error' => 'Method not allowed']); exit;
+    http_response_code(405);
+    echo json_encode(['error' => 'Method not allowed']);
+    exit;
 }
-$pdo = db();
+
+try {
+    $pdo = db();
 
 if (isset($_GET['id'])) {
   $id = (int)$_GET['id'];
@@ -30,23 +35,90 @@ $page = max(1, (int)($_GET['page'] ?? 1));
 $limit = min(100, max(1, (int)($_GET['limit'] ?? 20)));
 $offset = ($page-1)*$limit;
 
-$where=[]; $params=[];
-if (!empty($_GET['q'])) { $where[]="(name LIKE :q OR slug LIKE :q)"; $params[':q']='%'.trim($_GET['q']).'%'; }
-if (isset($_GET['is_active'])) { $where[]="is_active=:ia"; $params[':ia']=(int)!!$_GET['is_active']; }
-
-$w = $where ? 'WHERE '.implode(' AND ',$where) : '';
-$c = $pdo->prepare("SELECT COUNT(*) FROM categories $w");
-$c->execute($params);
-$total = (int)$c->fetchColumn();
-
-$sql = "SELECT * FROM categories $w ORDER BY created_at DESC LIMIT :l OFFSET :o";
-$s = $pdo->prepare($sql);
-foreach ($params as $k=>$v) $s->bindValue($k,$v);
-$s->bindValue(':l',$limit,PDO::PARAM_INT);
-$s->bindValue(':o',$offset,PDO::PARAM_INT);
-$s->execute();
-$rows = $s->fetchAll();
-
-echo json_encode(['success'=>true,'data'=>$rows,'pagination'=>[
-  'page'=>$page,'limit'=>$limit,'total'=>$total,'pages'=>(int)ceil($total/$limit)
-]]);
+    // Build WHERE clause and parameters
+    $whereConditions = [];
+    $params = [];
+    
+    // Search functionality
+    if (!empty($_GET['q'])) {
+        $searchTerm = trim($_GET['q']);
+        if (!empty($searchTerm)) {
+            $whereConditions[] = "(name LIKE :search OR slug LIKE :search)";
+            $params[':search'] = '%' . $searchTerm . '%';
+        }
+    }
+    
+    // Filter by active status
+    if (isset($_GET['is_active'])) {
+        $isActive = $_GET['is_active'];
+        if ($isActive === '1' || $isActive === 'true') {
+            $whereConditions[] = "is_active = 1";
+        } elseif ($isActive === '0' || $isActive === 'false') {
+            $whereConditions[] = "is_active = 0";
+        }
+    }
+    
+    $whereClause = !empty($whereConditions) ? 'WHERE ' . implode(' AND ', $whereConditions) : '';
+    
+    // Get total count
+    $countSql = "SELECT COUNT(*) FROM categories $whereClause";
+    $countStmt = $pdo->prepare($countSql);
+    $countStmt->execute($params);
+    $total = (int)$countStmt->fetchColumn();
+    
+    // Get categories with pagination
+    $sql = "SELECT 
+                id, 
+                name, 
+                slug, 
+                image_url, 
+                is_active, 
+                created_at, 
+                updated_at 
+            FROM categories 
+            $whereClause 
+            ORDER BY created_at DESC 
+            LIMIT :limit OFFSET :offset";
+    
+    $stmt = $pdo->prepare($sql);
+    
+    // Bind search and filter parameters
+    foreach ($params as $key => $value) {
+        $stmt->bindValue($key, $value);
+    }
+    
+    // Bind pagination parameters
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    
+    $stmt->execute();
+    $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Calculate pagination info
+    $totalPages = (int)ceil($total / $limit);
+    
+    $response = [
+        'success' => true,
+        'data' => $categories,
+        'pagination' => [
+            'page' => $page,
+            'limit' => $limit,
+            'total' => $total,
+            'pages' => $totalPages,
+            'has_next' => $page < $totalPages,
+            'has_prev' => $page > 1
+        ]
+    ];
+    
+    echo json_encode($response);
+    
+} catch (PDOException $e) {
+    error_log("Database error in categories/get.php: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['error' => 'Database error occurred']);
+} catch (Exception $e) {
+    error_log("General error in categories/get.php: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['error' => 'An error occurred']);
+}
+?>

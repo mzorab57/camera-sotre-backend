@@ -31,20 +31,20 @@ $offset = ($page - 1) * $limit;
 
 $where = []; $p = [];
 
-if (isset($_GET['category_id'])) { $where[]='category_id = :cid'; $p[':cid'] = (int)$_GET['category_id']; }
+if (isset($_GET['category_id'])) { $where[]='s.category_id = :cid'; $p[':cid'] = (int)$_GET['category_id']; }
 if (isset($_GET['type']) && in_array($_GET['type'], ['videography','photography','both'], true)) {
-  $where[] = 'type = :type'; $p[':type'] = $_GET['type'];
+  $where[] = 's.type = :type'; $p[':type'] = $_GET['type'];
 }
-if (isset($_GET['is_active'])) { $where[]='is_active = :ia'; $p[':ia']=(int)!!$_GET['is_active']; }
-if (!empty($_GET['q'])) { $p[':q'] = '%'.trim($_GET['q']).'%'; $where[]='(name LIKE :q OR slug LIKE :q)'; }
+if (isset($_GET['is_active'])) { $where[]='s.is_active = :ia'; $p[':ia']=(int)!!$_GET['is_active']; }
+if (!empty($_GET['q'])) { $p[':q'] = '%'.trim($_GET['q']).'%'; $where[]='(s.name LIKE :q OR s.slug LIKE :q)'; }
 
 $w = $where ? 'WHERE '.implode(' AND ', $where) : '';
 
-$c = $pdo->prepare("SELECT COUNT(*) FROM subcategories $w"); $c->execute($p);
+$c = $pdo->prepare("SELECT COUNT(*) FROM subcategories s LEFT JOIN categories c ON s.category_id = c.id $w"); $c->execute($p);
 $total = (int)$c->fetchColumn();
 
 
-$sql = "SELECT * FROM subcategories $w ORDER BY created_at DESC LIMIT :l OFFSET :o";
+$sql = "SELECT s.*, c.name as category_name FROM subcategories s LEFT JOIN categories c ON s.category_id = c.id $w ORDER BY s.created_at DESC LIMIT :l OFFSET :o";
 
 
 $s = $pdo->prepare($sql);

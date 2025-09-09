@@ -78,6 +78,16 @@ try {
     http_response_code(422); echo json_encode(['error'=>'discount_price cannot be greater than price']); exit;
   }
   if ($slug==='') $slug = slugify($name);
+  
+  // Auto-generate meta fields if not provided
+  if ($meta_title === '') {
+    $type_text = $type === 'photography' ? 'Photography' : ($type === 'videography' ? 'Videography' : 'Photography & Videography');
+    $meta_title = $name . ' - High Quality ' . $type_text . ' Equipment';
+  }
+  
+  if ($meta_description === null || trim($meta_description) === '') {
+    $meta_description = 'Discover ' . $name . ' - Premium ' . $type . ' equipment with excellent quality and competitive pricing. Perfect for professional and amateur photographers.';
+  }
 
   // verify subcategory exists
   $chk=$pdo->prepare("SELECT id FROM subcategories WHERE id=:id");

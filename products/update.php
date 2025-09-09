@@ -76,9 +76,29 @@ if (array_key_exists('brand',$d)) { $fields[]='brand=:brand'; $p[':brand']=trim(
 if (array_key_exists('is_featured',$d)) { $fields[]='is_featured=:feat'; $p[':feat']=(int)!!$d['is_featured']; }
 if (array_key_exists('is_active',$d))   { $fields[]='is_active=:act';   $p[':act']=(int)!!$d['is_active']; }
 
-// meta
-if (array_key_exists('meta_title',$d)) { $fields[]='meta_title=:mtitle'; $p[':mtitle']=trim((string)$d['meta_title'])?:null; }
-if (array_key_exists('meta_description',$d)) { $fields[]='meta_description=:mdesc'; $p[':mdesc']=$d['meta_description']; }
+// meta - with auto-generation if empty
+if (array_key_exists('meta_title',$d)) {
+  $meta_title = trim((string)$d['meta_title']);
+  if ($meta_title === '') {
+    // Auto-generate meta title
+    $product_name = $p[':name'] ?? $current['name'];
+    $product_type = $p[':type'] ?? $current['type'];
+    $type_text = $product_type === 'photography' ? 'Photography' : ($product_type === 'videography' ? 'Videography' : 'Photography & Videography');
+    $meta_title = $product_name . ' - High Quality ' . $type_text . ' Equipment';
+  }
+  $fields[]='meta_title=:mtitle'; $p[':mtitle']=$meta_title?:null;
+}
+
+if (array_key_exists('meta_description',$d)) {
+  $meta_description = $d['meta_description'];
+  if ($meta_description === null || trim($meta_description) === '') {
+    // Auto-generate meta description
+    $product_name = $p[':name'] ?? $current['name'];
+    $product_type = $p[':type'] ?? $current['type'];
+    $meta_description = 'Discover ' . $product_name . ' - Premium ' . $product_type . ' equipment with excellent quality and competitive pricing. Perfect for professional and amateur photographers.';
+  }
+  $fields[]='meta_description=:mdesc'; $p[':mdesc']=$meta_description;
+}
 
 if (!$fields && !isMultipart() && !array_key_exists('image_url',$d)) {
   http_response_code(400); echo json_encode(['error'=>'No fields to update']); exit;

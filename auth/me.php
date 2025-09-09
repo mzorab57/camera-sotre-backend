@@ -1,4 +1,5 @@
 <?php
+// auth/me.php
 require_once __DIR__ . '/../middleware/require_auth.php';
 
 require_auth();
