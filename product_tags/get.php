@@ -6,6 +6,46 @@ header('Content-Type: application/json; charset=utf-8');
 if ($_SERVER['REQUEST_METHOD']!=='GET'){ http_response_code(405); echo json_encode(['error'=>'Method not allowed']); exit; }
 $pdo=db();
 
+// Get all product-tag relationships
+if (isset($_GET['get_all'])) {
+  try {
+    $page=max(1,(int)($_GET['page']??1)); $limit=min(100,max(1,(int)($_GET['limit']??20))); $offset=($page-1)*$limit;
+    
+    // First check if product_tags table exists and has data
+    $count=$pdo->prepare("SELECT COUNT(*) FROM product_tags");
+    $count->execute(); $total=(int)$count->fetchColumn();
+    
+    if ($total === 0) {
+      echo json_encode(['success'=>true,'data'=>[],'pagination'=>[
+        'page'=>$page,'limit'=>$limit,'total'=>0,'pages'=>0
+      ]]); exit;
+    }
+    
+    // Query with JOINs to get product and tag details
+    $sql="SELECT pt.product_id, pt.tag_id, 
+                   p.name as product_name, p.price as product_price,
+                   t.name as tag_name, t.slug as tag_slug
+            FROM product_tags pt 
+            LEFT JOIN products p ON pt.product_id = p.id
+            LEFT JOIN tags t ON pt.tag_id = t.id
+            ORDER BY p.name, t.name 
+            LIMIT :l OFFSET :o";
+    $s=$pdo->prepare($sql);
+    $s->bindValue(':l',$limit,PDO::PARAM_INT);
+    $s->bindValue(':o',$offset,PDO::PARAM_INT);
+    $s->execute();
+    $rows=$s->fetchAll();
+    
+    echo json_encode(['success'=>true,'data'=>$rows,'pagination'=>[
+      'page'=>$page,'limit'=>$limit,'total'=>$total,'pages'=>(int)ceil($total/$limit)
+    ]]); exit;
+  } catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['error'=>'Database error: ' . $e->getMessage()]);
+    exit;
+  }
+}
+
 if (isset($_GET['product_id'])) {
   $pid=(int)$_GET['product_id'];
   $q=$pdo->prepare("SELECT t.* FROM tags t JOIN product_tags pt ON pt.tag_id=t.id WHERE pt.product_id=:pid ORDER BY t.name");
