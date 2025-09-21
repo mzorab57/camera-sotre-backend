@@ -19,9 +19,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
 }
 
 $q = trim($_GET['q'] ?? '');
-if ($q === '') {
+// Allow empty search query if filters are provided
+if ($q === '' && empty($_GET['type']) && empty($_GET['brand']) && !isset($_GET['min_price']) && !isset($_GET['max_price'])) {
   http_response_code(400);
-  echo json_encode(['error' => 'q is required']); exit;
+  echo json_encode(['error' => 'Search query or filters are required']); exit;
 }
 
 $pdo = db();
@@ -48,12 +49,18 @@ try {
 
   $w = $where ? ('WHERE ' . implode(' AND ', $where)) : 'WHERE 1=1';
 
-  // Boolean Mode query string (+term)
-  $terms = preg_split('/\s+/', $q, -1, PREG_SPLIT_NO_EMPTY);
-  $terms = array_slice($terms, 0, 10);
-  $qBool = '+' . implode(' +', array_map('trim', $terms));
+  // Handle search query
+  $hasSearchQuery = !empty($q) && $q !== '*';
+  $qBool = '';
+  
+  if ($hasSearchQuery) {
+    // Boolean Mode query string (+term)
+    $terms = preg_split('/\s+/', $q, -1, PREG_SPLIT_NO_EMPTY);
+    $terms = array_slice($terms, 0, 10);
+    $qBool = '+' . implode(' +', array_map('trim', $terms));
+  }
 
-  $useFulltext = hasFulltext($pdo) && empty($_GET['like']); // force LIKE with ?like=1
+  $useFulltext = hasFulltext($pdo) && empty($_GET['like']) && $hasSearchQuery; // force LIKE with ?like=1
 
   if ($useFulltext) {
     // Count
@@ -82,29 +89,51 @@ try {
     $rows = $s->fetchAll();
 
   } else {
-    // LIKE fallback
-    $like = '%' . $q . '%';
+    // LIKE fallback or filter-only search
+    if ($hasSearchQuery) {
+      $like = '%' . $q . '%';
+      
+      $countSql = "SELECT COUNT(*) FROM products p $w AND (p.name LIKE :likec OR p.model LIKE :likec OR p.brand LIKE :likec OR p.short_description LIKE :likec OR p.description LIKE :likec)";
+      $count = $pdo->prepare($countSql);
+      foreach ($params as $k=>$v) $count->bindValue($k, $v);
+      $count->bindValue(':likec', $like, PDO::PARAM_STR);
+      $count->execute();
+      $total = (int)$count->fetchColumn();
 
-    $countSql = "SELECT COUNT(*) FROM products p $w AND (p.name LIKE :likec OR p.model LIKE :likec OR p.brand LIKE :likec OR p.short_description LIKE :likec OR p.description LIKE :likec)";
-    $count = $pdo->prepare($countSql);
-    foreach ($params as $k=>$v) $count->bindValue($k, $v);
-    $count->bindValue(':likec', $like, PDO::PARAM_STR);
-    $count->execute();
-    $total = (int)$count->fetchColumn();
+      $sql = "SELECT p.*,
+        (SELECT image_url FROM product_images WHERE product_id=p.id AND is_primary=1 LIMIT 1) AS primary_image_url
+        FROM products p
+        $w AND (p.name LIKE :like OR p.model LIKE :like OR p.brand LIKE :like OR p.short_description LIKE :like OR p.description LIKE :like)
+        ORDER BY p.created_at DESC
+        LIMIT :l OFFSET :o";
+      $s = $pdo->prepare($sql);
+      foreach ($params as $k=>$v) $s->bindValue($k, $v);
+      $s->bindValue(':like', $like, PDO::PARAM_STR);
+      $s->bindValue(':l', $limit, PDO::PARAM_INT);
+      $s->bindValue(':o', $offset, PDO::PARAM_INT);
+      $s->execute();
+      $rows = $s->fetchAll();
+    } else {
+      // Filter-only search (no search query)
+      $countSql = "SELECT COUNT(*) FROM products p $w";
+      $count = $pdo->prepare($countSql);
+      foreach ($params as $k=>$v) $count->bindValue($k, $v);
+      $count->execute();
+      $total = (int)$count->fetchColumn();
 
-    $sql = "SELECT p.*,
-      (SELECT image_url FROM product_images WHERE product_id=p.id AND is_primary=1 LIMIT 1) AS primary_image_url
-      FROM products p
-      $w AND (p.name LIKE :like OR p.model LIKE :like OR p.brand LIKE :like OR p.short_description LIKE :like OR p.description LIKE :like)
-      ORDER BY p.created_at DESC
-      LIMIT :l OFFSET :o";
-    $s = $pdo->prepare($sql);
-    foreach ($params as $k=>$v) $s->bindValue($k, $v);
-    $s->bindValue(':like', $like, PDO::PARAM_STR);
-    $s->bindValue(':l', $limit, PDO::PARAM_INT);
-    $s->bindValue(':o', $offset, PDO::PARAM_INT);
-    $s->execute();
-    $rows = $s->fetchAll();
+      $sql = "SELECT p.*,
+        (SELECT image_url FROM product_images WHERE product_id=p.id AND is_primary=1 LIMIT 1) AS primary_image_url
+        FROM products p
+        $w
+        ORDER BY p.created_at DESC
+        LIMIT :l OFFSET :o";
+      $s = $pdo->prepare($sql);
+      foreach ($params as $k=>$v) $s->bindValue($k, $v);
+      $s->bindValue(':l', $limit, PDO::PARAM_INT);
+      $s->bindValue(':o', $offset, PDO::PARAM_INT);
+      $s->execute();
+      $rows = $s->fetchAll();
+    }
   }
 
   echo json_encode([
