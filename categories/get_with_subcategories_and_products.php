@@ -44,7 +44,7 @@ try {
         // Get products for each subcategory
         foreach ($subcategories as &$subcategory) {
             $productsStmt = $pdo->prepare("
-                SELECT p.id, p.name, p.slug, p.price, p.type, p.brand, p.is_active,
+                SELECT p.id, p.name, p.slug, p.price, p.type, p.brand, p.is_active, p.short_description, p.description, p.discount_price,
                        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) AS primary_image_url
                 FROM products p
                 WHERE p.subcategory_id = :subcategory_id AND p.is_active = 1
@@ -52,7 +52,31 @@ try {
                 LIMIT 10
             ");
             $productsStmt->execute([':subcategory_id' => $subcategory['id']]);
-            $subcategory['products'] = $productsStmt->fetchAll(PDO::FETCH_ASSOC);
+            $products = $productsStmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Get all images for each product
+            foreach ($products as &$product) {
+                $imagesStmt = $pdo->prepare("
+                    SELECT id, image_url, is_primary, display_order
+                    FROM product_images 
+                    WHERE product_id = :product_id 
+                    ORDER BY is_primary DESC, display_order ASC
+                ");
+                $imagesStmt->execute([':product_id' => $product['id']]);
+                $product['images'] = $imagesStmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Get all specifications for each product
+                $specificationsStmt = $pdo->prepare("
+                    SELECT id, spec_name, spec_value, spec_group, display_order
+                    FROM product_specifications 
+                    WHERE product_id = :product_id 
+                    ORDER BY spec_group IS NULL, spec_group, display_order, spec_name
+                ");
+                $specificationsStmt->execute([':product_id' => $product['id']]);
+                $product['specifications'] = $specificationsStmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+            
+            $subcategory['products'] = $products;
         }
         
         $category['subcategories'] = $subcategories;
@@ -134,7 +158,7 @@ try {
         // Get products for each subcategory (limited to 5 per subcategory for performance)
         foreach ($subcategories as &$subcategory) {
             $productsStmt = $pdo->prepare("
-                SELECT p.id, p.name, p.slug, p.price, p.type, p.brand, p.is_active,
+                SELECT p.id, p.name, p.slug, p.price, p.type, p.brand, p.is_active, p.short_description, p.description, p.discount_price,
                        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) AS primary_image_url
                 FROM products p
                 WHERE p.subcategory_id = :subcategory_id AND p.is_active = 1
@@ -142,7 +166,31 @@ try {
                 LIMIT 5
             ");
             $productsStmt->execute([':subcategory_id' => $subcategory['id']]);
-            $subcategory['products'] = $productsStmt->fetchAll(PDO::FETCH_ASSOC);
+            $products = $productsStmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Get all images for each product
+            foreach ($products as &$product) {
+                $imagesStmt = $pdo->prepare("
+                    SELECT id, image_url, is_primary, display_order
+                    FROM product_images 
+                    WHERE product_id = :product_id 
+                    ORDER BY is_primary DESC, display_order ASC
+                ");
+                $imagesStmt->execute([':product_id' => $product['id']]);
+                $product['images'] = $imagesStmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Get all specifications for each product
+                $specificationsStmt = $pdo->prepare("
+                    SELECT id, spec_name, spec_value, spec_group, display_order
+                    FROM product_specifications 
+                    WHERE product_id = :product_id 
+                    ORDER BY spec_group IS NULL, spec_group, display_order, spec_name
+                ");
+                $specificationsStmt->execute([':product_id' => $product['id']]);
+                $product['specifications'] = $specificationsStmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+            
+            $subcategory['products'] = $products;
         }
         
         $category['subcategories'] = $subcategories;
