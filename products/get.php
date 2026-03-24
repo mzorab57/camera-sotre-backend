@@ -164,7 +164,7 @@ if (!empty($_GET['slug'])) {
 }
 
 $page=max(1,(int)($_GET['page']??1));
-$limit=min(100,max(1,(int)($_GET['limit']??20)));
+$limit=min(1000,max(1,(int)($_GET['limit']??20)));
 $offset=($page-1)*$limit;
 
 $where=[]; $p=[];
@@ -173,7 +173,13 @@ if (isset($_GET['subcategory_id'])) { $where[]='p.subcategory_id=:sid'; $p[':sid
 if (isset($_GET['category_id'])) { $where[]='p.category_id=:cid'; $p[':cid']=(int)$_GET['category_id']; }
 if (isset($_GET['type']) && in_array($_GET['type'],['videography','photography','both'],true)) { $where[]='p.type=:type'; $p[':type']=$_GET['type']; }
 if (!empty($_GET['brand'])) { $where[]='p.brand=:brand'; $p[':brand']=trim($_GET['brand']); }
-if (isset($_GET['is_active'])) { $where[]='p.is_active=:ia'; $p[':ia']=(int)!!$_GET['is_active']; }
+if (isset($_GET['is_active'])) {
+  if ($_GET['is_active'] === 'all') {
+    // no filter
+  } else {
+    $where[]='p.is_active=:ia'; $p[':ia']=(int)!!$_GET['is_active'];
+  }
+}
 if (isset($_GET['is_featured'])) { $where[]='p.is_featured=:if'; $p[':if']=(int)!!$_GET['is_featured']; }
 if (isset($_GET['min_price'])) { $where[]='p.price>=:minp'; $p[':minp']= (float)$_GET['min_price']; }
 if (isset($_GET['max_price'])) { $where[]='p.price<=:maxp'; $p[':maxp']= (float)$_GET['max_price']; }
