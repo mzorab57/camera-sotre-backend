@@ -6,7 +6,10 @@ $envAllowed = getenv('ALLOWED_ORIGINS');
 $baseDefaults = [
   'https://adnanshops.com',
   'https://www.adnanshops.com',
-  'https://dashboard.adnanshops.com'
+  'https://dashboard.adnanshops.com',
+  // ***** Bo local amana ba kar bena *****
+   'http://localhost:5173',
+   'http://localhost:5174'
 ];
 $allowedList = $baseDefaults;
 if ($envAllowed && trim($envAllowed) !== '') {
@@ -26,7 +29,7 @@ if ($origin) {
 header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 header('Access-Control-Max-Age: 86400');
-header('Content-Type: application/json; charset=utf-8');
+
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   http_response_code(204);
